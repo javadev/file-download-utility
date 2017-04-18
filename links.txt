@@ -1,0 +1,2 @@
+http://example.com/archive.zip my_archive.zip
+http://example.com/image.jpg picture.jpg
