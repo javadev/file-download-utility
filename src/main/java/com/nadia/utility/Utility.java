@@ -145,6 +145,14 @@ public class Utility {
         return sb.toString();
     }
 
+    private static class Statistics {
+        static AtomicInteger totalFilesCount = new AtomicInteger();
+        static AtomicInteger filesCount = new AtomicInteger();
+        static AtomicInteger filesSize = new AtomicInteger();
+        static AtomicInteger downloadTime = new AtomicInteger();
+        static AtomicInteger speed = new AtomicInteger();
+    }
+
     private static class LinkItem {
         String url;
         String fileName;
@@ -165,20 +173,21 @@ public class Utility {
         public Void call() {
             byte[] fileData = fetch(linkItem.url).blob();
             new File(outputFolder).mkdir();
+            long timeInSec = System.currentTimeMillis();
             try {
                 FileOutputStream stream = new FileOutputStream(outputFolder + "/"
                     + linkItem.fileName);
                 stream.write(fileData);
                 stream.close();
-                String percent = "100";
-                String filesCount = "1";
-                String filesSize = String.valueOf(fileData.length);
-                String downloadTime = "100";
-                String speed = "10";
-                callback.report(String.format("Завершено: %s%%\n"
-                    + "Загружено: %s файлов, %s\n"
-                    + "Время: %s\n"
-                    + "Средняя скорость: %s\n", percent, filesCount, filesSize, downloadTime, speed));
+                int filesCount = Statistics.filesCount.incrementAndGet();
+                int percent = 100 * filesCount / Statistics.totalFilesCount.get();
+                int filesSize = Statistics.filesSize.addAndGet(fileData.length);
+                int downloadTime = Statistics.downloadTime.addAndGet((int) (System.currentTimeMillis() - timeInSec));
+                long speed = filesCount / (downloadTime == 0 ? 1 : downloadTime);
+                callback.report(String.format("Завершено: %d%%\n"
+                    + "Загружено: %d файлов, %d bytes\n"
+                    + "Время: %d милисекунд\n"
+                    + "Средняя скорость: %d файлов в милисекунду\n", percent, filesCount, filesSize, downloadTime, speed));
 
             } catch (IOException ex) {
             }
@@ -209,7 +218,9 @@ public class Utility {
         List<Void> result = new ArrayList<Void>();
         final ExecutorService executor = Executors.newFixedThreadPool(Integer.parseInt(threads));
         final List<Callable<Void>> callables = new ArrayList<Callable<Void>>();
-        for (LinkItem linkItem : parseLinksFile(linksFileName)) {
+        final List<LinkItem> linkItems = parseLinksFile(linksFileName);
+        Statistics.totalFilesCount.set(linkItems.size());
+        for (final LinkItem linkItem : linkItems) {
             callables.add(new CallableImpl(outputFolder, linkItem, callback));
         }
         try {
