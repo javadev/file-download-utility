@@ -137,12 +137,34 @@ public class Utility {
         return sb.toString();
     }
 
+    private static class LinkItem {
+        String url;
+        String fileName;
+    }
+
+    private static class CallableImpl implements Callable<Void> {
+
+        private final String outputFolder;
+        private final List<LinkItem> linkItems;
+        private final Callback callback;
+
+        public CallableImpl(String outputFolder, List<LinkItem> linkItems, Callback callback) {
+            this.outputFolder = outputFolder;
+            this.linkItems = linkItems;
+            this.callback = callback;
+        }
+
+        public Void call() {
+            return null;
+        }
+    }
+
     public static void downloadFiles(String threads, String outputFolder, String linksFileName, Callback callback) {
-        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+        List<Void> result = new ArrayList<Void>();
         final ExecutorService executor = Executors.newFixedThreadPool(100);
-        final List<Callable<Map<String, Object>>> callables = new ArrayList<Callable<Map<String, Object>>>();
+        final List<Callable<Void>> callables = new ArrayList<Callable<Void>>();
         try {
-            for (Future<Map<String, Object>> future : executor.invokeAll(callables)) {
+            for (Future<Void> future : executor.invokeAll(callables)) {
                 try {
                     result.add(future.get());
                 } catch (ExecutionException ex) {
