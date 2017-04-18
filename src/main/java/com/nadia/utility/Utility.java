@@ -1,6 +1,9 @@
 package com.nadia.utility;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -145,16 +148,34 @@ public class Utility {
     private static class CallableImpl implements Callable<Void> {
 
         private final String outputFolder;
-        private final List<LinkItem> linkItems;
+        private final LinkItem linkItem;
         private final Callback callback;
 
-        public CallableImpl(String outputFolder, List<LinkItem> linkItems, Callback callback) {
+        public CallableImpl(String outputFolder, LinkItem linkItem, Callback callback) {
             this.outputFolder = outputFolder;
-            this.linkItems = linkItems;
+            this.linkItem = linkItem;
             this.callback = callback;
         }
 
         public Void call() {
+            byte[] fileData = fetch(linkItem.url).blob();
+            try {
+                FileOutputStream stream = new FileOutputStream(outputFolder + "/"
+                    + linkItem.fileName);
+                stream.write(fileData);
+                stream.close();
+                String percent = "100";
+                String filesCount = "1";
+                String filesSize = String.valueOf(fileData.length);
+                String downloadTime = "100";
+                String speed = "10";
+                callback.report(String.format("Завершено: %s%%\n"
+                    + "Загружено: %s файлов, %s"
+                    + "Время: %s"
+                    + "Средняя скорость: %s", percent, filesCount, filesSize, downloadTime, speed));
+
+            } catch (IOException ex) {
+            }
             return null;
         }
     }
