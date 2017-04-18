@@ -1,8 +1,12 @@
 package com.nadia.utility;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.Callable;
@@ -160,6 +164,7 @@ public class Utility {
 
         public Void call() {
             byte[] fileData = fetch(linkItem.url).blob();
+            new File(outputFolder).mkdir();
             try {
                 FileOutputStream stream = new FileOutputStream(outputFolder + "/"
                     + linkItem.fileName);
@@ -171,9 +176,9 @@ public class Utility {
                 String downloadTime = "100";
                 String speed = "10";
                 callback.report(String.format("Завершено: %s%%\n"
-                    + "Загружено: %s файлов, %s"
-                    + "Время: %s"
-                    + "Средняя скорость: %s", percent, filesCount, filesSize, downloadTime, speed));
+                    + "Загружено: %s файлов, %s\n"
+                    + "Время: %s\n"
+                    + "Средняя скорость: %s\n", percent, filesCount, filesSize, downloadTime, speed));
 
             } catch (IOException ex) {
             }
@@ -183,13 +188,30 @@ public class Utility {
 
     private static List<LinkItem> parseLinksFile(String linksFileName) {
         List<LinkItem> result = new ArrayList<LinkItem>();
+        Path linksFilePath = Paths.get(linksFileName);
+        try {
+            List<String> lines = Files.readAllLines(linksFilePath, Charset.forName("UTF-8"));
+            for (String line : lines) {
+                if (line.matches("\\S+\\s+\\S+")) {
+                    LinkItem linkItem = new LinkItem();
+                    String[] linkItems = line.split("\\s+");
+                    linkItem.url = linkItems[0];
+                    linkItem.fileName = linkItems[1];
+                    result.add(linkItem);
+                }
+            }
+        } catch (IOException ex) {
+        }
         return result;
     }
 
     public static void downloadFiles(String threads, String outputFolder, String linksFileName, Callback callback) {
         List<Void> result = new ArrayList<Void>();
-        final ExecutorService executor = Executors.newFixedThreadPool(100);
+        final ExecutorService executor = Executors.newFixedThreadPool(Integer.parseInt(threads));
         final List<Callable<Void>> callables = new ArrayList<Callable<Void>>();
+        for (LinkItem linkItem : parseLinksFile(linksFileName)) {
+            callables.add(new CallableImpl(outputFolder, linkItem, callback));
+        }
         try {
             for (Future<Void> future : executor.invokeAll(callables)) {
                 try {
@@ -220,6 +242,7 @@ public class Utility {
             }
             Callback callback = new Callback() {
                 public void report(String data) {
+                    System.out.println(data);
                 }
             };
             downloadFiles(threads, outputFolder, linksFileName, callback);
