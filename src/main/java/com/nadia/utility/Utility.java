@@ -1,6 +1,11 @@
 package com.nadia.utility;
 
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Utility {
     private static final Map<String, List<String>> DEFAULT_HEADER_FIELDS = new HashMap<String, List<String>>() { {
@@ -133,8 +138,21 @@ public class Utility {
     }
 
     public static void downloadFiles(String threads, String outputFolder, String linksFileName, Callback callback) {
-        String text = fetch("https://www.linkedin.com/jobs/view/287941696/").text();
-        System.out.println("text - " + text);
+        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+        final ExecutorService executor = Executors.newFixedThreadPool(100);
+        final List<Callable<Map<String, Object>>> callables = new ArrayList<Callable<Map<String, Object>>>();
+        try {
+            for (Future<Map<String, Object>> future : executor.invokeAll(callables)) {
+                try {
+                    result.add(future.get());
+                } catch (ExecutionException ex) {
+                    System.out.println("ExecutionException - " + ex.getMessage());
+                }
+            }
+        } catch (InterruptedException ex) {
+            System.out.println("InterruptedException - " + ex.getMessage());
+        }
+        executor.shutdown();
     }
 
     public static void main(String[] args) {
