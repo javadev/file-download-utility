@@ -2,6 +2,7 @@ package com.nadia.utility;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.Callable;
@@ -178,6 +179,11 @@ public class Utility {
             }
             return null;
         }
+    }
+
+    private static List<LinkItem> parseLinksFile(String linksFileName) {
+        List<LinkItem> result = new ArrayList<LinkItem>();
+        return result;
     }
 
     public static void downloadFiles(String threads, String outputFolder, String linksFileName, Callback callback) {
