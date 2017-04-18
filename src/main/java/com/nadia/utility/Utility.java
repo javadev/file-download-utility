@@ -15,19 +15,28 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+/**
+ * Главный класс утилиты.
+ */
 public class Utility {
+    // Заголовки по-умолчанию для HTTP запросов.
     private static final Map<String, List<String>> DEFAULT_HEADER_FIELDS = new HashMap<String, List<String>>() { {
         put("Content-Type", Arrays.asList("application/json", "charset=utf-8"));
     } };
+    // Поддерживаемые HTTP типы запросов для метода fetch(url)
     private static final Set<String> SUPPORTED_HTTP_METHODS = new HashSet<String>(
         Arrays.asList("GET", "POST", "PUT", "DELETE"));
+    // размер буфера в байтах для загрузки файлов
     private static final int BUFFER_LENGTH_1024 = 1024;
+    // HTTP код 400 для проверки ошибок
     private static final int RESPONSE_CODE_400 = 400;
 
+    // Интерфейс для вызова кода при копировании файла
     public static interface Callback {
         void report(String data);
     }
 
+    // Класс хранит ответ сервера (может быть бинарный или текстовый)
     public static class FetchResponse {
         private final boolean ok;
         private final int status;
@@ -67,26 +76,32 @@ public class Utility {
         }
     }
 
+    // Класс для проверки запросов https
     static class NoHostnameVerifier implements javax.net.ssl.HostnameVerifier {
         public boolean verify(String hostname, javax.net.ssl.SSLSession session) {
               return true;
         }
     }
 
+    // метод для считывания файла
     public static FetchResponse fetch(final String url) {
         return fetch(url, null, null, DEFAULT_HEADER_FIELDS, null, null);
     }
 
+    // метод для считывания файла 2
     public static FetchResponse fetch(final String url, final String method, final String body,
         final Map<String, List<String>> headerFields, final Integer connectTimeout, final Integer readTimeout) {
         final String localMethod;
         if (SUPPORTED_HTTP_METHODS.contains(method)) {
             localMethod = method;
         } else {
+            // Тип запроса по-умолчанию
             localMethod = "GET";
         }
         try {
+            // Получить URL объект из строки
             final java.net.URL localUrl = new java.net.URL(url);
+            // Открыть соединение
             final java.net.HttpURLConnection connection = (java.net.HttpURLConnection) localUrl.openConnection();
             connection.setRequestMethod(localMethod);
             if (connectTimeout != null) {
@@ -112,15 +127,18 @@ public class Utility {
                 outputStream.close();
             }
             final int responseCode = connection.getResponseCode();
+            // Прочитать содержимое файла из ответа
             final java.io.InputStream inputStream;
             if (responseCode < RESPONSE_CODE_400) {
                 inputStream = connection.getInputStream();
             } else {
                 inputStream = connection.getErrorStream();
             }
+            // Буфер в памяти для сохранения содержимого файла
             final java.io.ByteArrayOutputStream result = new java.io.ByteArrayOutputStream();
             final byte[] buffer = new byte[BUFFER_LENGTH_1024];
             int length;
+            // Скопировать в буфер
             while ((length = inputStream.read(buffer)) != -1) {
                 result.write(buffer, 0, length);
             }
@@ -132,6 +150,7 @@ public class Utility {
         }
     }
 
+    // Метод для склеивания содержимого массива
     static <T> String join(final Iterable<T> iterable, final String separator) {
         final StringBuilder sb = new StringBuilder();
         int index = 0;
@@ -145,6 +164,7 @@ public class Utility {
         return sb.toString();
     }
 
+    // Класс хранит статистику для обработанных файлов
     private static class Statistics {
         static AtomicInteger totalFilesCount = new AtomicInteger();
         static AtomicInteger filesCount = new AtomicInteger();
@@ -153,11 +173,13 @@ public class Utility {
         static AtomicInteger speed = new AtomicInteger();
     }
 
+    // Класс хранит данные для файла links.txt
     private static class LinkItem {
         String url;
         String fileName;
     }
 
+    // Класс хранит вызов для вычитывания файла из сети и сохранения его на диске
     private static class CallableImpl implements Callable<Void> {
 
         private final String outputFolder;
@@ -171,10 +193,14 @@ public class Utility {
         }
 
         public Void call() {
+            // Прочитать файл
             byte[] fileData = fetch(linkItem.url).blob();
+            // Создать каталоги для файла
             new File(outputFolder).mkdir();
+            // Сохранить текущее время в милисекундах
             long timeInSec = System.currentTimeMillis();
             try {
+                // Сохранить файл на диске
                 FileOutputStream stream = new FileOutputStream(outputFolder + "/"
                     + linkItem.fileName);
                 stream.write(fileData);
@@ -195,6 +221,7 @@ public class Utility {
         }
     }
 
+    // Метод для вычитывания содержимого файла links.txt
     private static List<LinkItem> parseLinksFile(String linksFileName) {
         List<LinkItem> result = new ArrayList<LinkItem>();
         Path linksFilePath = Paths.get(linksFileName);
@@ -204,7 +231,9 @@ public class Utility {
                 if (line.matches("\\S+\\s+\\S+")) {
                     LinkItem linkItem = new LinkItem();
                     String[] linkItems = line.split("\\s+");
+                    // Выделить url
                     linkItem.url = linkItems[0];
+                    // Выделить имя файла
                     linkItem.fileName = linkItems[1];
                     result.add(linkItem);
                 }
@@ -216,14 +245,17 @@ public class Utility {
 
     public static void downloadFiles(String threads, String outputFolder, String linksFileName, Callback callback) {
         List<Void> result = new ArrayList<Void>();
+        // Создать Executor с числом потоков threads
         final ExecutorService executor = Executors.newFixedThreadPool(Integer.parseInt(threads));
         final List<Callable<Void>> callables = new ArrayList<Callable<Void>>();
         final List<LinkItem> linkItems = parseLinksFile(linksFileName);
+        // Определить общее число файлов
         Statistics.totalFilesCount.set(linkItems.size());
         for (final LinkItem linkItem : linkItems) {
             callables.add(new CallableImpl(outputFolder, linkItem, callback));
         }
         try {
+            // Запустить обработчики файлов в executor
             for (Future<Void> future : executor.invokeAll(callables)) {
                 try {
                     result.add(future.get());
@@ -256,6 +288,7 @@ public class Utility {
                     System.out.println(data);
                 }
             };
+            // Вызов метода для загрузки файлов и сохранения их на диске
             downloadFiles(threads, outputFolder, linksFileName, callback);
         }
     }
